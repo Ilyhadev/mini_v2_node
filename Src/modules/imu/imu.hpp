@@ -65,6 +65,7 @@ protected:
 private:
     DronecanPublisher<AhrsRawImu> pub;
     DronecanPublisher<MagneticFieldStrength2> mag;
+    DronecanPublisher<mpu_vibration> vib;
     Logging logger{"IMU"};
     Mpu9250 imu;
 

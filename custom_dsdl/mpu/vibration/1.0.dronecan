@@ -1,0 +1,6 @@
+# mpu.vibration.1.0
+
+uint8 id
+float16 vibration_metrics
+float16 dominant_frequency
+float16 dominant_snr

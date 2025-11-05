@@ -93,6 +93,8 @@ void ImuModule::spin_once() {
             HAL_GetTick() - pub.msg.timestamp / 1000 > pub_timeout_ms){
         if (updated[0] && updated[1]) {
             pub.publish();
+            // vibration metrics will be published at the same rate as pub does
+            vib.publish();
             pub.msg.timestamp = HAL_GetTick() * 1000;
         }
     }
@@ -122,9 +124,9 @@ void ImuModule::update_accel_fft() {
         return;
     }
     fft_accel.update(accel.data());
-    pub.msg.accelerometer_integral[0] = fft_accel.dominant_frequency;
+    vib.msg.dominant_frequency = fft_accel.dominant_frequency;
     pub.msg.accelerometer_integral[1] = fft_accel.dominant_mag * 1000;
-    pub.msg.accelerometer_integral[2] = fft_accel.dominant_snr;
+    vib.msg.dominant_snr = fft_accel.dominant_snr;
 }
 
 void ImuModule::update_gyro_fft() {
