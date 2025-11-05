@@ -10,6 +10,7 @@ set(LIBPARAMS_PATH ${ROOT_DIR}/Libs/libparams)
 set(LIBPARAMS_CMAKE libparams.cmake)
 set(DOC_PATH ${ROOT_DIR}/docs/${CAN_PROTOCOL}.md)
 
+
 # Option 1. Choose the platform
 option(USE_PLATFORM_UBUNTU "Build for SITL (Software In The Loop)" OFF)
 option(USE_PLATFORM_NODE_V2 "Build for stm32f103xB (128 KBytes)" OFF)
@@ -93,6 +94,24 @@ add_definitions(-DHW_VERSION_MAJOR=2)
 add_definitions(-DHW_VERSION_MINOR=1)
 
 set(CMAKE_CXX_STANDARD 20)
+add_compile_definitions(UAVCAN_CPP_VERSION=UAVCAN_CPP11)
+
+
+set(LIBUAVCAN_PATH ${ROOT_DIR}/Libs/libuavcan)
+
+# Use SYSTEM includes for UAVCAN - this suppresses warnings from these headers
+include_directories(SYSTEM
+    ${LIBUAVCAN_PATH}/libuavcan/include
+)
+
+if(EXISTS "${CMAKE_BINARY_DIR}/Libs/libuavcan/libuavcan/dsdlc_generated")
+    include_directories(SYSTEM
+        ${CMAKE_BINARY_DIR}/Libs/libuavcan/libuavcan/dsdlc_generated
+    )
+endif()
+
+message(STATUS "UAVCAN headers path: ${LIBUAVCAN_PATH}/libuavcan/include")
+
 # Project
 project(node CXX C ASM)
 
