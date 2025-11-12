@@ -13,7 +13,7 @@ import dronecan
 from dronecan import dsdl
 from dronecan.dsdl import parser
 
-def load_custom_dsdl_properly():
+def load_custom_dsdl():
     """Load custom DSDL properly with all required attributes"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_root = os.path.abspath(os.path.join(script_dir, '..'))
@@ -33,7 +33,7 @@ def load_custom_dsdl_properly():
         if dtype.default_dtid:
             dronecan.DATATYPES[(dtype.default_dtid, dtype.kind)] = dtype
             
-            # CRITICAL: Calculate base_crc like the original load_dsdl does
+            # Calculate base_crc like the original load_dsdl does
             dtype.base_crc = dsdl.crc16_from_bytes(struct.pack("<Q", dtype.get_data_type_signature()))
             
             print(f"Added: {dtype.full_name} (DTID: {dtype.default_dtid}, CRC: {hex(dtype.base_crc)})")
@@ -56,10 +56,7 @@ def load_custom_dsdl_properly():
     print(f"Total types after: {len(dronecan.DATATYPES)}")
 
 def main():
-    print("=== Fixed Additive DSDL Loader ===")
-    
-    # Load custom DSDL properly
-    load_custom_dsdl_properly()
+    load_custom_dsdl()
     
     # Verify everything works
     print("\nVerifying message availability and functionality:")
@@ -78,23 +75,6 @@ def main():
             print(f"{msg_name} (CRC: {has_crc})")
         else:
             print(f"{msg_name}")
-    
-    # Test custom message
-    custom_message = 'uavcan_vendor_specific_types.com.rl.vibration.Measurement'
-    if custom_message in dronecan.TYPENAMES:
-        dtype = dronecan.TYPENAMES[custom_message]
-        has_crc = hasattr(dtype, 'base_crc')
-        can_instantiate = hasattr(dtype, '_instantiate')
-        print(f"{custom_message} (DTID: {dtype.default_dtid}, CRC: {has_crc}, Instantiate: {can_instantiate})")
-        
-        # Test instantiation
-        try:
-            instance = dtype()
-            print(f"Can instantiate custom message")
-        except Exception as e:
-            print(f"Cannot instantiate: {e}")
-    else:
-        print(f"{custom_message}")
     
     # Run GUI tool
     from dronecan_gui_tool.main import main as gui_main
