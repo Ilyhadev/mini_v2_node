@@ -3,6 +3,7 @@
  * See <https://www.gnu.org/licenses/> for details.
  * Author: Dmitry Ponomarev <ponomarevda96@gmail.com>
  * Author: Anastasiia Stepanova <asiiapine@gmail.com>
+ * FIFO collaborator: Ilia Kliantsevich <iliawork112005@gmail.com>
  */
 
 #ifndef SRC_MODULES_IMU_HPP_
@@ -40,17 +41,18 @@ class ImuModule : public Module {
 public:
     enum class Publisher_bitmask : uint8_t {
         DISABLED                    = 0,
+        ENABLED                     = 1,
         ENABLE_VIB_ESTIM            = 2,
         ENABLE_FFT_ACC              = 4,
         ENABLE_FFT_GYR              = 8,
         ENABLE_ALL_BY_DEFAULT       = 15,
     };
 
-    enum class Data_bitmast : uint8_t {
+    enum class Data_source : uint8_t {
         DISABLED                    = 0,
         ENABLE_SYNTH_GEN            = 1,
         ENABLE_FIFO_READINGS        = 2,
-        ENABLE_REG_READINGS         = 4,
+        ENABLE_REG_READINGS         = 3,
     };
 
     ImuModule() : Module(MODULE_FREQ_HZ, Protocol::DRONECAN) {}
@@ -63,9 +65,9 @@ protected:
     void get_vibration(std::array<float, 3> data);
 
 private:
-    DronecanPublisher<AhrsRawImu> raw_pub;
-    DronecanPublisher<MagneticFieldStrength2> mag;
+    DronecanPublisher<AhrsRawImu> ahrs_pub;
     DronecanPublisher<Mpu_vibration> vib_pub;
+    DronecanPublisher<MagneticFieldStrength2> mag;
     Logging logger{"IMU"};
     Mpu9250 imu;
 
@@ -81,8 +83,8 @@ private:
     float vibration = 0.0f;
     bool initialized{false};
     bool enabled{false};
-    uint8_t publisher_bitmask{0};
-    uint8_t data_bitmask{0};
+    Publisher_bitmask publisher_bitmask{0};
+    Data_source data_source{0};
     uint16_t pub_timeout_ms{0};
     uint16_t log_timeout_ms = 2000;
 
@@ -90,9 +92,13 @@ private:
     std::array<float, NUM_AXES> accel = {0.0f, 0.0f, 0.0f};
     float temperature{0};
 
+    bool is_fifo_created = true;
+    bool fifo_state = is_fifo_created;
+
     void process_random_gen (std::array<bool, 2>& updated);
     void process_real_fifo (std::array<bool, 2>& updated);
     void process_real_register (std::array<bool, 2>& updated);
+
     static constexpr float raw_gyro_to_rad_per_second(int16_t raw_gyro) {
         return raw_gyro * std::numbers::pi_v<float> / 131.0f / 180.0f;
     }
