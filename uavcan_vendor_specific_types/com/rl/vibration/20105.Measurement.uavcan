@@ -1,0 +1,8 @@
+#
+# Vibration measurement data
+#
+
+uint8 id
+float16 vibration_metrics  # change in magnitude of acceleration changes between consecutive readings in ms/s^2
+float16 dominant_frequency  # vibration measured in Hz
+float16 dominant_snr  # signal to noise ratio from FFT

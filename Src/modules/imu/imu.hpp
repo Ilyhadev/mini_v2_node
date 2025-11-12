@@ -63,9 +63,9 @@ protected:
     void get_vibration(std::array<float, 3> data);
 
 private:
-    DronecanPublisher<AhrsRawImu> pub;
+    DronecanPublisher<AhrsRawImu> raw_pub;
     DronecanPublisher<MagneticFieldStrength2> mag;
-    DronecanPublisher<mpu_vibration> vib;
+    DronecanPublisher<Mpu_vibration> vib_pub;
     Logging logger{"IMU"};
     Mpu9250 imu;
 

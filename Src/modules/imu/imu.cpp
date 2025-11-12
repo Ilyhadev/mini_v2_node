@@ -87,13 +87,12 @@ void ImuModule::spin_once() {
     }
 
     // Publish message
-    if ((initialized || has_bit(data_bitmask, Data_bitmast::ENABLE_SYNTH_GEN)) &&
-            HAL_GetTick() - pub.msg.timestamp / 1000 > pub_timeout_ms){
+    if ((initialized || data_source == Data_source::ENABLE_SYNTH_GEN) &&
+            HAL_GetTick() - raw_pub.msg.timestamp / 1000 > pub_timeout_ms){
         if (updated[0] && updated[1]) {
-            pub.publish();
-            // vibration metrics will be published at the same rate as pub does
-            vib.publish();
-            pub.msg.timestamp = HAL_GetTick() * 1000;
+            raw_pub.publish();
+            vib_pub.publish();
+            raw_pub.msg.timestamp = HAL_GetTick() * 1000;
         }
     }
     // Publish logs
@@ -110,10 +109,10 @@ void ImuModule::get_vibration(std::array<float, 3> data) {
     }
     float diff_magnitude = 0.0f;
     for (uint8_t i = 0; i < 3; i++) {
-        diff_magnitude += std::pow(data[i] - pub.msg.accelerometer_latest[i], 2);
+        diff_magnitude += std::pow(data[i] - raw_pub.msg.accelerometer_latest[i], 2);
     }
     vibration = 0.99f * vibration + 0.01f * std::sqrt(diff_magnitude);
-    pub.msg.integration_interval = vibration;
+    raw_pub.msg.integration_interval = vibration;
     return;
 }
 
@@ -122,9 +121,9 @@ void ImuModule::update_accel_fft() {
         return;
     }
     fft_accel.update(accel.data());
-    vib.msg.dominant_frequency = fft_accel.dominant_frequency;
-    pub.msg.accelerometer_integral[1] = fft_accel.dominant_mag * 1000;
-    vib.msg.dominant_snr = fft_accel.dominant_snr;
+    vib_pub.msg.dominant_frequency  = fft_accel.dominant_frequency;
+    raw_pub.msg.accelerometer_integral[0]= fft_accel.dominant_mag * 1000;
+    vib_pub.msg.dominant_snr = fft_accel.dominant_snr;
 }
 
 void ImuModule::update_gyro_fft() {
@@ -132,9 +131,9 @@ void ImuModule::update_gyro_fft() {
         return;
     }
     fft_gyro.update(gyro.data());
-    pub.msg.rate_gyro_integral[0] = fft_gyro.dominant_frequency;
-    pub.msg.rate_gyro_integral[1] = fft_gyro.dominant_mag * 1000;
-    pub.msg.rate_gyro_integral[2] = fft_gyro.dominant_snr;
+    raw_pub.msg.rate_gyro_integral[0] = fft_gyro.dominant_frequency;
+    raw_pub.msg.rate_gyro_integral[1] = fft_gyro.dominant_mag * 1000;
+    raw_pub.msg.rate_gyro_integral[2] = fft_gyro.dominant_snr;
 }
 
 
@@ -144,8 +143,8 @@ void ImuModule::process_random_gen (std::array<bool, 2>& updated){
     // Set values for to generate
     accel_signal_generator.setAmpl(gen_amplitude);
     accel_signal_generator.setFreq(gen_freq);
-    memset(pub.msg.rate_gyro_latest, 0,
-        sizeof(pub.msg.rate_gyro_latest));
+    memset(raw_pub.msg.rate_gyro_latest, 0,
+        sizeof(raw_pub.msg.rate_gyro_latest));
     updated[0] = true;
 
     auto curr_accel =  accel_signal_generator.get_next_sample();
@@ -154,11 +153,11 @@ void ImuModule::process_random_gen (std::array<bool, 2>& updated){
     accel[2] = 0;
     // Set dafault values to vibration
     get_vibration({0, 0, 0});
-    pub.msg.accelerometer_latest[0] = curr_accel;
+    raw_pub.msg.accelerometer_latest[0] = curr_accel;
     // Other axis are redundant if we want to simulate one wave
     // Set them from 2nd element as 1st is used
-    memset(pub.msg.accelerometer_latest + 1, 0,
-        sizeof(pub.msg.accelerometer_latest) - sizeof(pub.msg.accelerometer_latest[0]));
+    memset(raw_pub.msg.accelerometer_latest + 1, 0,
+        sizeof(raw_pub.msg.accelerometer_latest) - sizeof(raw_pub.msg.accelerometer_latest[0]));
     updated[1] = true;
     update_accel_fft();
 }
@@ -183,18 +182,18 @@ void ImuModule::process_real_fifo (std::array<bool, 2>& updated){
                 raw_gyro_to_rad_per_second(gyro_raw[0]),
                 raw_gyro_to_rad_per_second(gyro_raw[1]),
                 raw_gyro_to_rad_per_second(gyro_raw[2])};
-            pub.msg.rate_gyro_latest[0] = gyro[0];
-            pub.msg.rate_gyro_latest[1] = gyro[1];
-            pub.msg.rate_gyro_latest[2] = gyro[2];
+            raw_pub.msg.rate_gyro_latest[0] = gyro[0];
+            raw_pub.msg.rate_gyro_latest[1] = gyro[1];
+            raw_pub.msg.rate_gyro_latest[2] = gyro[2];
             updated[0] = true;
             accel = {
                     raw_accel_to_meter_per_square_second(accel_raw[0]),
                     raw_accel_to_meter_per_square_second(accel_raw[1]),
                     raw_accel_to_meter_per_square_second(accel_raw[2])};
             get_vibration(accel);
-            pub.msg.accelerometer_latest[0] = accel[0];
-            pub.msg.accelerometer_latest[1] = accel[1];
-            pub.msg.accelerometer_latest[2] = accel[2];
+            raw_pub.msg.accelerometer_latest[0] = accel[0];
+            raw_pub.msg.accelerometer_latest[1] = accel[1];
+            raw_pub.msg.accelerometer_latest[2] = accel[2];
             updated[1] = true;
         } else if (result == -2) {
             // Overflow handled, continue without updating
@@ -236,9 +235,9 @@ void ImuModule::process_real_register (std::array<bool, 2>& updated) {
                 raw_gyro_to_rad_per_second(gyro_raw[0]),
                 raw_gyro_to_rad_per_second(gyro_raw[1]),
                 raw_gyro_to_rad_per_second(gyro_raw[2])};
-        pub.msg.rate_gyro_latest[0] = gyro[0];
-        pub.msg.rate_gyro_latest[1] = gyro[1];
-        pub.msg.rate_gyro_latest[2] = gyro[2];
+        raw_pub.msg.rate_gyro_latest[0] = gyro[0];
+        raw_pub.msg.rate_gyro_latest[1] = gyro[1];
+        raw_pub.msg.rate_gyro_latest[2] = gyro[2];
         updated[0] = true;
         update_gyro_fft();
     }
@@ -249,9 +248,9 @@ void ImuModule::process_real_register (std::array<bool, 2>& updated) {
                 raw_accel_to_meter_per_square_second(accel_raw[1]),
                 raw_accel_to_meter_per_square_second(accel_raw[2])};
         get_vibration(accel);
-        pub.msg.accelerometer_latest[0] = accel[0];
-        pub.msg.accelerometer_latest[1] = accel[1];
-        pub.msg.accelerometer_latest[2] = accel[2];
+        raw_pub.msg.accelerometer_latest[0] = accel[0];
+        raw_pub.msg.accelerometer_latest[1] = accel[1];
+        raw_pub.msg.accelerometer_latest[2] = accel[2];
         updated[1] = true;
         update_accel_fft();
     }
