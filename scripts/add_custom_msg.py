@@ -6,52 +6,105 @@
 # For example see: Libs/Dronecan/include/com/rl/vibration/Measurement.h
 
 #!/usr/bin/env python3
-#!/usr/bin/env python3
-#!/usr/bin/env python3
-"""
-Simple DSDL loader using the correct DroneCAN/Yakut approach
-"""
-
 import os
 import sys
+import struct
+import dronecan
+from dronecan import dsdl
+from dronecan.dsdl import parser
 
-# Find the custom DSDL path
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir)
-custom_dsdl_path = os.path.join(project_root, 'uavcan_vendor_specific_types')
-
-print(f"Looking for DSDL in: {custom_dsdl_path}")
-
-if os.path.isdir(custom_dsdl_path):
-    print(f"Found custom DSDL at: {custom_dsdl_path}")
+def load_custom_dsdl_properly():
+    """Load custom DSDL properly with all required attributes"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.abspath(os.path.join(script_dir, '..'))
+    custom_dsdl_path = os.path.join(repo_root, 'uavcan_vendor_specific_types')
     
-    # Method 1: Set environment variable for Yakut
-    os.environ['YAKUT_PATH'] = custom_dsdl_path
-    print("✓ Set YAKUT_PATH environment variable")
+    print(f"Loading custom DSDL from: {custom_dsdl_path}")
     
-    # Method 2: Try to load directly with DroneCAN
-    try:
-        import dronecan
-        from dronecan.dsdl import parse_dsdl_namespace
+    # Parse the custom DSDL
+    custom_types = parser.parse_namespaces([custom_dsdl_path])
+    
+    # Add custom types properly
+    for dtype in custom_types:
+        # Add to TYPENAMES
+        dronecan.TYPENAMES[dtype.full_name] = dtype
         
-        # Parse the custom DSDL namespace
-        parsed_namespace = parse_dsdl_namespace(custom_dsdl_path)
-        print("✓ Custom DSDL namespace parsed successfully")
-        
-        # Try to access our custom message
-        try:
-            # This will work if the DSDL is properly structured
-            from dronecan.com.rl.vibration import Vibration
-            print(f"✓ Custom vibration message loaded!")
-            print(f"  ID: {Vibration.dtid}, Signature: {hex(Vibration.data_type_signature)}")
-        except ImportError as e:
-            print(f"⚠ Could not import custom message directly: {e}")
-            print("  This is normal if DSDL needs compilation first")
+        # Add to DATATYPES if it has a DTID
+        if dtype.default_dtid:
+            dronecan.DATATYPES[(dtype.default_dtid, dtype.kind)] = dtype
             
-    except Exception as e:
-        print(f"⚠ DroneCAN DSDL parsing failed: {e}")
+            # CRITICAL: Calculate base_crc like the original load_dsdl does
+            dtype.base_crc = dsdl.crc16_from_bytes(struct.pack("<Q", dtype.get_data_type_signature()))
+            
+            print(f"Added: {dtype.full_name} (DTID: {dtype.default_dtid}, CRC: {hex(dtype.base_crc)})")
         
-else:
-    print(f"❌ Custom DSDL path not found: {custom_dsdl_path}")
+        # Also need to set up instantiation methods like original load_dsdl
+        def create_instance_closure(closure_type, _mode=None):
+            def create_instance(*args, **kwargs):
+                if _mode:
+                    assert '_mode' not in kwargs, 'Mode cannot be supplied to service type instantiation helper'
+                    kwargs['_mode'] = _mode
+                return dronecan.transport.CompoundValue(closure_type, *args, **kwargs)
+            return create_instance
 
-print("DSDL loading complete.")
+        dtype._instantiate = create_instance_closure(dtype)
+
+        if dtype.kind == dtype.KIND_SERVICE:
+            dtype.Request = create_instance_closure(dtype, _mode='request')
+            dtype.Response = create_instance_closure(dtype, _mode='response')
+    
+    print(f"Total types after: {len(dronecan.DATATYPES)}")
+
+def main():
+    print("=== Fixed Additive DSDL Loader ===")
+    
+    # Load custom DSDL properly
+    load_custom_dsdl_properly()
+    
+    # Verify everything works
+    print("\nVerifying message availability and functionality:")
+    
+    # Test standard messages
+    standard_messages = [
+        'uavcan.protocol.NodeStatus',
+        'uavcan.protocol.GetNodeInfo', 
+        'uavcan.equipment.ahrs.RawIMU'
+    ]
+    
+    for msg_name in standard_messages:
+        if msg_name in dronecan.TYPENAMES:
+            dtype = dronecan.TYPENAMES[msg_name]
+            has_crc = hasattr(dtype, 'base_crc')
+            print(f"{msg_name} (CRC: {has_crc})")
+        else:
+            print(f"{msg_name}")
+    
+    # Test custom message
+    custom_message = 'uavcan_vendor_specific_types.com.rl.vibration.Measurement'
+    if custom_message in dronecan.TYPENAMES:
+        dtype = dronecan.TYPENAMES[custom_message]
+        has_crc = hasattr(dtype, 'base_crc')
+        can_instantiate = hasattr(dtype, '_instantiate')
+        print(f"{custom_message} (DTID: {dtype.default_dtid}, CRC: {has_crc}, Instantiate: {can_instantiate})")
+        
+        # Test instantiation
+        try:
+            instance = dtype()
+            print(f"Can instantiate custom message")
+        except Exception as e:
+            print(f"Cannot instantiate: {e}")
+    else:
+        print(f"{custom_message}")
+    
+    # Run GUI tool
+    from dronecan_gui_tool.main import main as gui_main
+    
+    # Remove --dsdl to prevent double-loading
+    filtered_args = [arg for arg in sys.argv[1:] if not arg.startswith('--dsdl')]
+    sys.argv = [sys.argv[0]] + filtered_args
+    
+    print(f"\nStarting GUI tool...")
+    return gui_main()
+
+if __name__ == '__main__':
+    sys.exit(main())
