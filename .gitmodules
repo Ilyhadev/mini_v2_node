@@ -19,6 +19,3 @@
 [submodule "libuavcan"]
 	path = libuavcan
 	url = git@github.com:dronecan/libuavcan.git
-[submodule "Libs/libuavcan"]
-	path = Libs/libuavcan
-	url = git@github.com:dronecan/libuavcan.git

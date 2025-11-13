@@ -17,11 +17,11 @@ Supported features:
 - [x] Redundant CAN interface (node v3),
 - [x] MPU-9250 IMU (node v3).
 - [x] CAN terminator resistors control (node v3).
+- [x] Vibration Analysis: estimate dominant frequency and magnitude of vibrations for diagnosing mechanical issues or ensuring smooth operation in drones or robotic platforms in real time.
 
 Roadmap / Not supported or tested yet:
 - [ ] Cyphal/DroneCAN Bootloader,
 - [ ] Dynamic Node Allocation (DNA),
-- [ ] Vibration Analysis: estimate dominant frequency and magnitude of vibrations for diagnosing mechanical issues or ensuring smooth operation in drones or robotic platforms in real time.
 - [ ] AS5600 I2C sensor encoder for servo position estimation
 
 ### 2. TARGET HARDWARE
@@ -114,6 +114,13 @@ make sitl_cyphal run
 For full interaction with the node use:
 - DroneCAN: [gui_tool](https://github.com/dronecan/gui_tool)
 - Cyphal: [Yakut](https://github.com/OpenCyphal/yakut) / [Yukon](https://github.com/OpenCyphal/yukon).
+
+Note that for dronecan gui tool configuration it's **necessary** to have folder Libs/Dronecan/include/libdcnode/uavcan_vendor_specific_types (with all contents) in home (~) directory, so dronecan would understand custom types.
+
+Alternatively you may use script: scripts/add_custom_types.sh which will add symlink to your home directory for you:
+```bash
+source scripts/add_custom_types.sh  
+```
 
 ### 6. ARCHITECTURE OVERVIEW
 
