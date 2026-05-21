@@ -53,6 +53,8 @@ void DronecanFeedbackModule::spin_once() {
     if (feedback_gimbal_enabled == Gimbal_enable::ENABLE_QUAT){
         publish_gimbal_status_quaternion();
     }
+    Logging logger{"check"};
+    logger.log_info("fsdsf");
 }
 
 void DronecanFeedbackModule::publish_esc_status(uint8_t pin_idx) {

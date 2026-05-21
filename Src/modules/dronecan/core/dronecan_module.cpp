@@ -11,6 +11,8 @@
 #include "libdcnode/can_driver.h"
 #include "drivers/board_monitor/board_monitor.hpp"
 
+extern "C" uint64_t get_firmware_image_crc();
+
 #ifndef GIT_HASH
     #warning "GIT_HASH has been assigned to 0 by default."
     #define GIT_HASH            (uint64_t)0
@@ -121,6 +123,7 @@ void DronecanModule::init() {
         .sw_version_minor = APP_VERSION_MINOR,
         .hw_version_major = HW_VERSION_MAJOR,
         .hw_version_minor = HW_VERSION_MINOR,
+        .image_crc = get_firmware_image_crc(),
     };
 
     int8_t res = uavcanInitApplication(params_api, platform_api, &app_info);

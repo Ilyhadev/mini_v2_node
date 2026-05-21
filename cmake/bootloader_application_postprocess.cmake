@@ -38,8 +38,13 @@ function(configure_bootloader_application_postprocess executable)
     set(POSTPROCESS_STAMP "${BUILD_OBJ_DIR}/${PROJECT_NAME}.postprocess.stamp")
     set(FIRMWARE_POSTPROCESS_TARGET "${executable}_postprocess")
 
+    string(REGEX REPLACE "^0x" "" CLEAN_HASH "${GIT_HASH}")
+    string(SUBSTRING "${CLEAN_HASH}" 0 8 SHORT_GIT_HASH)
+
     add_custom_command(
         OUTPUT ${POSTPROCESS_STAMP}
+        
+        # 1. Apply Kocherga app descriptor patch
         COMMAND ${Python3_EXECUTABLE}
             ${ROOT_DIR}/scripts/kocherga_image.py
             --assign-version ${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}
@@ -50,18 +55,28 @@ function(configure_bootloader_application_postprocess executable)
             --assign-vcs-revision-id ${GIT_HASH}
             --side-patch ${BUILD_OBJ_DIR}/${PROJECT_NAME}.elf
             ${BUILD_OBJ_DIR}/${PROJECT_NAME}.bin
+            
+        # 2. Run your existing post-process
         COMMAND ${CMAKE_COMMAND}
             -DINPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}
             -DPROJECT_NAME=${PROJECT_NAME}
             -DOUT_FILE=${BUILD_OBJ_DIR}/${PROJECT_NAME}.bin
             -DSELECT_LATEST_APP_DESCRIPTOR_BIN=1
             -P ${ROOT_DIR}/cmake/bootloader_application_postprocess.cmake
+            
+        # 3. Create the PX4-Compatible file in the build directory
+        COMMAND ${CMAKE_COMMAND} -E copy
+            ${BUILD_OBJ_DIR}/${PROJECT_NAME}.bin
+            ${CMAKE_CURRENT_BINARY_DIR}/co.rl.mini-2.1-${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${SHORT_GIT_HASH}.uavcan.bin
+            
+        # 4. Touch the compilation stamp
         COMMAND ${CMAKE_COMMAND} -E touch ${POSTPROCESS_STAMP}
+        
         DEPENDS
             ${FIRMWARE_ARTIFACTS_TARGET}
             ${BUILD_OBJ_DIR}/${PROJECT_NAME}.bin
             ${BUILD_OBJ_DIR}/${PROJECT_NAME}.elf
-        COMMENT "Applying Kocherga app descriptor CRC/size patch"
+        COMMENT "Applying Kocherga app descriptor and generating PX4 .uavcan.bin artifact"
         VERBATIM
     )
 

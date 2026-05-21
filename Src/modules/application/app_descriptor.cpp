@@ -61,3 +61,7 @@ static const volatile AppDescriptor app_descriptor
 static_assert(sizeof(AppDescriptor) == 64U);
 
 }  // namespace
+
+extern "C" uint64_t get_firmware_image_crc() {
+    return app_descriptor.image_crc;
+}
