@@ -130,7 +130,7 @@ class Flags:
 @dataclasses.dataclass
 class AppDescriptor:
     SIZE = 64
-    ALIGNMENT = 8
+    ALIGNMENT = 16
     MAGIC = 0x5E44_1514_6FC0_C4C7
     SIGNATURE = b"APDesc00"
 

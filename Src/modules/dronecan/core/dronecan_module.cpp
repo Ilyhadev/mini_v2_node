@@ -10,8 +10,9 @@
 #include "libdcnode/dronecan.h"
 #include "libdcnode/can_driver.h"
 #include "drivers/board_monitor/board_monitor.hpp"
+#include "common/logging.hpp"
 
-extern "C" uint64_t get_firmware_image_crc();
+extern uint64_t get_firmware_image_crc();
 
 #ifndef GIT_HASH
     #warning "GIT_HASH has been assigned to 0 by default."
@@ -138,6 +139,12 @@ void DronecanModule::spin_once() {
     if (global_mode > 0 ) {
         global_mode -= 1;
     }
+    // Logging logger{"sfd"};
+    // char buf[80];
+    // snprintf(buf, sizeof(buf), "crc: 0x%08lx%08lx", 
+    //      (uint32_t)(get_firmware_image_crc() >> 32), 
+    //      (uint32_t)(get_firmware_image_crc() & 0xFFFFFFFF));
+    // logger.log_info(buf);
     uavcanSetNodeStatusMode(static_cast<NodeStatusMode_t>(global_mode));
     uavcanSetVendorSpecificStatusCode(ModuleManager::get_vssc());
     uavcanSpinOnce();
