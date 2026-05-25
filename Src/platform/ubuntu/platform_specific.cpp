@@ -21,7 +21,7 @@ int main() {
     application_entry_point();
     return 0;
 }
-
+uint64_t get_firmware_image_crc() {return 0;}
 void platformSpecificReadUniqueID(uint8_t out_uid[4]) {
     memset(out_uid, 0x00, 16);
 }
